@@ -131,7 +131,7 @@ def has_cycle(g):
 | 一扇一扇門試 | `for v in g[u]:` |
 | 退出房間，回到上一個房間 | `return`，回到上一層 `dfs` 剛才停下來的地方 |
 
-重點是：**走進下一個房間時，上一個房間的探索只是暫停，並沒有結束。**等下一個房間 `return` 回來，上一個房間會從剛才停下的那扇門繼續試下一扇。
+重點是：**走進下一個房間時，上一個房間的探索只是暫停，並沒有結束。** 等下一個房間 `return` 回來，上一個房間會從剛才停下的那扇門繼續試下一扇。
 
 這很像疊盤子：每走進一個房間就疊上一個盤子，退出時拿掉最上面那個。**疊著的那些盤子，就是灰色的點。**
 
@@ -191,6 +191,60 @@ print(has_cycle(g2))   # True：有環
 
 ---
 
+## 找出環在哪裡
+
+只回答「有環」還不夠，要知道是誰卡住誰才能修。遇到灰色的點時，**從那個點到目前位置的這段路**，就是環。所以只要多記一條「目前這條路」：
+
+```python
+WHITE, GRAY, BLACK = 0, 1, 2
+
+def dfs(g, color, path, u):
+    color[u] = GRAY
+    path.append(u)                          # 走進來，加到路上
+    for v in g[u]:
+        if color[v] == GRAY:                # 遇到灰色 → 找到環
+            start = path.index(v)           # 找出 v 在路上的位置
+            return path[start:] + [v]       # 從 v 截到最後，再接回 v
+        if color[v] == WHITE:
+            cycle = dfs(g, color, path, v)
+            if cycle:                       # 裡面找到環，就一路往回傳
+                return cycle
+    path.pop()                              # 要退出了，從路上拿掉
+    color[u] = BLACK
+    return None                             # 沒找到環
+
+def find_cycle(g):
+    color = {}
+    for u in g:
+        color[u] = WHITE
+    for u in g:
+        if color[u] == WHITE:
+            cycle = dfs(g, color, [], u)
+            if cycle:
+                return cycle
+    return None
+```
+
+跟三色版本比，只多了三件事：
+
+| 多了什麼 | 作用 |
+| --- | --- |
+| `path.append(u)` | 走進一個點，就把它加到「目前這條路」 |
+| `path.pop()` | 退出一個點，就把它從路上拿掉 |
+| `path[start:] + [v]` | 遇到灰色的 v 時，從 v 在路上的位置截到最後，再接回 v，就是整個環 |
+
+實際跑出來：
+
+```python
+print(find_cycle({"a": ["b"], "b": ["c"], "c": ["b"]}))          # ['b', 'c', 'b']
+print(find_cycle({"a": ["b"], "b": ["c"], "c": ["a"]}))          # ['a', 'b', 'c', 'a']
+print(find_cycle({"raw": ["clean", "agg"], "clean": ["agg"], "agg": []}))   # None：沒有環
+```
+
+第一個例子裡，走到 c 時路是 `['a', 'b', 'c']`，c 指向灰色的 b。b 在路上的位置是 1，截出 `['b', 'c']` 再接回 b，得到 `['b', 'c', 'b']`。
+
+---
+
 ## 常見問題
 
 **Q：`has_cycle` 為什麼要每個點都試一次當起點？**
@@ -211,7 +265,7 @@ print(has_cycle(g2))   # True：有環
 
 確定沒有環，下一個問題通常是「該照什麼順序做」：Excel 要先算哪一格、選課要先修哪一門、套件要先裝哪一個。這叫做**拓撲排序**。
 
-三色法剛好可以順便算出來：**記下每個點變黑的順序，倒過來就是一個可行的做事順序。**例一變黑的順序是 agg → clean → raw，倒過來 raw → clean → agg，正好就是「先有原始資料，再清理，最後彙總」。
+三色法剛好可以順便算出來：**記下每個點變黑的順序，倒過來就是一個可行的做事順序。** 例一變黑的順序是 agg → clean → raw，倒過來 raw → clean → agg，正好就是「先有原始資料，再清理，最後彙總」。
 
 ### 沒有方向的圖（例如朋友關係）
 
